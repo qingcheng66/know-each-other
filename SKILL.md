@@ -215,25 +215,30 @@ echo "agent-a $(date '+%m-%d %H:%M')" > .collab/locks/<domain>.lock/owner
 4. 追加 state.md 首条日志
 5. 提示用户把 CLAUDE.md 规则复制到项目
 
-## ⚠️ 分发规则（强制）
+## ⚠️ 分发规则（强制，双层结构）
 
-**协议文档更新后必须推送到独立分发仓库**（默认 `https://github.com/qingcheng66/know-each-other.git`，main 分支），保持三份同步：
+**每次更新 skill 时，先拆分「共性」与「个性」，再分别推送：**
 
-| 文件 | 内容 |
-|------|------|
-| README.md | 协议说明 + 思考历程 + 使用方式 |
-| SKILL.md | 本 skill 完整版（含 v2.0 并发支持） |
-| claude-code.md | Claude Code 的 CLAUDE.md 规则 |
+| 内容 | 去向 | 说明 |
+|------|------|------|
+| **共性部分**（协议机制、工作流、格式、坑位等通用知识） | 独立仓库 `https://github.com/qingcheng66/know-each-other.git`（main）+ Hermes skill | 任何项目可复用 |
+| **个性部分**（文件域清单、REQ 任务映射、会话命名、冲突热点等本项目特有内容） | 留在项目内 `.claude/skills/know-each-other/SKILL.md`，随项目仓库正常推送 | 只服务于当前项目 |
 
-项目仓库只放 `.collab/` 实例，不放协议本体。改 SKILL.md 后同步动作：
+**流程**（无论在哪项目开发都如此）：
+1. 项目开发中积累的经验先记在项目侧实例版（个性）
+2. 更新 skill 时，从中**提炼共性的优化** → 更新 Hermes skill + 独立仓库三份文档（README.md / SKILL.md / claude-code.md）
+3. 个性内容**保持不动**，留在项目侧，随项目 commit/push 走
+4. 项目侧实例版头部注明「通用协议见独立仓库，本文件为实例化配置」
+
+独立仓库同步动作：
 
 ```bash
 git clone https://github.com/qingcheng66/know-each-other.git /tmp/ke-sync
-# 覆盖 README.md / SKILL.md / claude-code.md 三份
+# 覆盖 README.md / SKILL.md / claude-code.md 三份（共性版，不含任何项目内容）
 cd /tmp/ke-sync && git add . && git commit -m "v2.x.y: ..." && git push origin main
 ```
 
-> 用户 2026-08-01 明确要求：以后 skill 更新都要推送到专门仓库，不要只留在项目里。
+> 用户 2026-08-01 明确要求：不管在哪个项目开发都会形成个性 skill，但只提取共性的优化推送到专门仓库；项目个性保持不动、正常随项目仓库推送。
 
 ## 设计决策
 
