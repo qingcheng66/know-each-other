@@ -6,7 +6,7 @@
 
 Hermes 分配任务、Claude Code 认领干活。两个 Agent 通过 `.collab/` 目录下的 state.md（日志）+ board.md（公告栏）交接。你一句话触发——"同步项目"、"加需求"、"更新 wiki"。
 
-**v2.0 新增：支持两个 Claude Code 会话并行开发**（文件域锁 + 会话注册表 + 认领原子化），详见下文。
+**v2.0 新增：支持多个 Agent 会话并行开发**（文件域锁 + 会话注册表 + 认领原子化），详见下文。
 
 ## 思考历程
 
@@ -34,16 +34,16 @@ Claude Code 完成后 → 写状态 → Hermes 读 → 更新 wiki
 | `board.md` | 任务公告栏——谁分活、谁领活、做到哪了 | Hermes 分配，Claude Code 认领+改状态 |
 | `state.md` | 运行日志——时间线上每个人干了什么 | 双方追加 |
 
-### v2.0：两个 Claude 并行怎么办？（2026-08-01）
+### v2.0：多 Agent 并行怎么办？（2026-08-01）
 
-用户同时开两个 Claude Code 会话并行开发时发现竞争风险：
+实际使用中同时开多个 Agent 会话并行开发时发现竞争风险，任何多 Agent 共享一个仓库都会遇到：
 
 - **board 认领竞态**：多个任务被同一时间戳全部标记 🔄，无会话归属
-- **文件冲突热点**：两个任务同时改 `globals.css` + `layout.tsx`，谁后保存谁覆盖谁
+- **文件冲突热点**：两个任务同时改同一个共享文件（如全局样式、根布局），谁后保存谁覆盖谁；全仓级任务（如 lint 清理）与任何并行任务都可能撞
 - **git 提交互相卷入**：两个会话各自 commit/push，第二个 push 被拒（non-fast-forward）
 - **.collab 无锁**：两会话同时写 state.md / board.md，Markdown 无锁，后者覆盖前者且不可见
 
-**教训**：给任务标"归属"（claude-a 做这个、claude-b 做那个）只是计划，LLM 会话不保证遵守。所以 v2.0 用**机制强制**替代计划约定：
+**教训**：给任务标"归属"（agent-a 做这个、agent-b 做那个）只是计划，LLM 会话不保证遵守。所以 v2.0 用**机制强制**替代计划约定：
 
 | 机制 | 实现 | 原理 |
 |------|------|------|
@@ -53,13 +53,15 @@ Claude Code 完成后 → 写状态 → Hermes 读 → 更新 wiki
 
 ### 关键设计决策
 
-**需求写一句话，不写详细规格。** Claude Code 的编码判断力优于 Hermes。给目标不给代码。省 token，发挥 Agent 能力。
+**需求写一句话，不写详细规格。** 执行 Agent 的编码判断力优于 Hermes。给目标不给代码。省 token，发挥 Agent 能力。
 
-**不追求自动触发。** LLM Agent 无法被"强制"执行任何操作。用户一句话触发最可靠——"同步项目"、"加需求到 blog：XXX"。
+**不追求自动触发。** LLM Agent 无法被"强制"执行任何操作。用户一句话触发最可靠——"同步项目"、"加需求到 {项目}：XXX"。
 
 **不依赖特定平台。** 目录名叫 `.collab/`，不叫 `.hermes/` 或 `.claude/`。任何能读文件的 Agent 都能参与。
 
 **锁用 mkdir 不用 touch。** mkdir 原子、失败即冲突；touch 文件会静默覆盖。
+
+**协议文档通用化，项目细节外置。** skill 不写死具体项目的文件路径/任务编号，文件域清单在初始化时按项目定义。
 
 ## 使用方式
 
@@ -76,11 +78,11 @@ Claude Code 完成后 → 写状态 → Hermes 读 → 更新 wiki
 
 > 初始化 know-each-other
 
-Hermes 创建 `.collab/` 目录 + state.md + board.md + locks/ + sessions/。
+Hermes 创建 `.collab/` 目录 + state.md + board.md + locks/ + sessions/，并按项目结构定义文件域清单。
 
 ### 3. Claude Code 配置
 
-把以下内容放在项目 `CLAUDE.md` 第一条：
+把以下内容放在项目 `CLAUDE.md` 第一条（文件域清单按该项目结构替换）：
 
 ```markdown
 ## 🔴 协作协议（know-each-other v2.0）
@@ -99,10 +101,10 @@ Hermes 创建 `.collab/` 目录 + state.md + board.md + locks/ + sessions/。
 | 你说 | Hermes 做 |
 |------|----------|
 | "同步项目" | 读 state + board + sessions + locks → 汇报状态 |
-| "加需求到 blog：文章搜索" | 追加 board ⏳ + 写日志 |
+| "加需求到 {项目}：XXX" | 追加 board ⏳ + 写日志 |
 | "更新 wiki" | 读日志 → 写 wiki → 移动完成项 |
 | "更新 CLAUDE.md" | 读日志 → 追加式修改 CLAUDE.md |
-| "两个 claude 一起开发" | 检查 sessions/locks → 提示按文件域划分会话 |
+| "多个 agent 一起开发" | 检查 sessions/locks → 提示按文件域划分会话 |
 
 ## 文件结构
 
@@ -128,7 +130,7 @@ Hermes 创建 `.collab/` 目录 + state.md + board.md + locks/ + sessions/。
 
 ## 🔄 进行中
 
-- REQ-004 前端登录页面 (claude-a, 15:45)
+- REQ-004 前端登录页面 (agent-a, 15:45)
 
 ## ⏳ 待认领
 
@@ -137,7 +139,7 @@ Hermes 创建 `.collab/` 目录 + state.md + board.md + locks/ + sessions/。
 
 ## ✅ 最近完成
 
-- REQ-003 登录 API (claude-a, a1b2c3d, 7/28)
+- REQ-003 登录 API (agent-a, a1b2c3d, 7/28)
 ```
 
 ### state.md（运行日志）
@@ -146,26 +148,37 @@ Hermes 创建 `.collab/` 目录 + state.md + board.md + locks/ + sessions/。
 ## 2026-08-01
 
 [14:30] Hermes — 新增需求 REQ-005（文章搜索）
-[15:00] claude-a — 完成 REQ-003（登录 API），commit a1b2c3d
-[15:45] claude-a — 🔄 开始 REQ-004（前端登录页），涉及 /login/page.tsx
-[16:20] claude-a — ⚠️ 修改了 API 返回格式：{code,data,msg} → {status,payload}
-[16:45] claude-a — 完成 REQ-004，commit e5f6g7h
+[15:00] agent-a — 完成 REQ-003（登录 API），commit a1b2c3d
+[15:45] agent-a — 🔄 开始 REQ-004（前端登录页），涉及 /login/page.tsx
+[16:20] agent-a — ⚠️ 修改了 API 返回格式：{code,data,msg} → {status,payload}
+[16:45] agent-a — 完成 REQ-004，commit e5f6g7h
 ```
 
 **时间戳强制规则**：写日志前先 `date "+%m-%d %H:%M"` 拿真实时间，禁止 `[--:--]` 占位符；插到当天 `## YYYY-MM-DD` 区块末尾。
 
-## 文件域定义（双会话时按域锁文件）
+## 文件域定义（锁的粒度，按项目结构自定义）
 
-| 域 | 覆盖文件 |
-|----|---------|
-| `styles` | globals.css、tailwind 配置 |
-| `layout` | layout.tsx、根组件 |
-| `content-data` | content.ts、content/*.json |
-| `components` | src/components/ 各组件 |
-| `pages` | src/app/ 页面 |
-| `admin` | 后台 + API |
-| `infra` | Dockerfile、CLAUDE.md、配置 |
-| `collab` | .collab/ 自身 |
+文件域 = 把项目文件按目录/模块分组，作为锁的粒度。按目标项目实际结构划分：
+
+- 按目录或模块划分（如 `src/components/`、`src/lib/`、某个业务模块）
+- 粒度适中：太细（单文件）锁满天飞；太粗（整个仓库）退化为串行
+- **全局共享文件单独成域**（如 globals.css、根布局、配置文件）——它们是多任务冲突热点
+- 协议文件（`.collab/` 自身）单独成域，供协议维护用
+
+示例划分（前端项目常见形态，仅供参考，务必按实际项目调整）：
+
+| 域 | 覆盖文件 | 冲突风险 |
+|----|---------|:------:|
+| `styles` | 全局样式、主题配置 | ⚠️ 高 |
+| `layout` | 根布局、外壳组件 | ⚠️ 高 |
+| `content-data` | 数据层、内容文件 | 中 |
+| `components` | 组件目录 | 中 |
+| `pages` | 页面目录 | 低 |
+| `admin` | 后台 + API | 低 |
+| `infra` | 构建/部署/Agent 配置 | 低 |
+| `collab` | .collab/ 自身 | — |
+
+全仓级任务（lint 修复、依赖升级、全局重构）没有安全域，应单独排在一个会话空闲时做，不与任何任务并行。
 
 ## 设计原则
 
@@ -175,6 +188,7 @@ Hermes 创建 `.collab/` 目录 + state.md + board.md + locks/ + sessions/。
 - **用户触发** — 不追求自动，你一句话最可靠
 - **简洁优先** — 需求一句话，不给代码
 - **机制强制优先于计划约定** — 锁（mkdir 原子）> 归属标注（LLM 不保证遵守）
+- **协议通用，细节外置** — skill 不写死项目路径/任务编号，文件域按项目初始化
 
 ## 许可
 
